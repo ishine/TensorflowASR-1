@@ -1,0 +1,8 @@
+
+*.xml
+*.pyc
+*.iml
+*.v2
+*.txt
+*.h5
+*.npy

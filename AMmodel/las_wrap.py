@@ -9,7 +9,7 @@ from tensorflow_addons.seq2seq import BahdanauAttention
 from tensorflow_addons.seq2seq import Decoder
 from AMmodel.layers.decoder import dynamic_decode
 from AMmodel.layers.time_frequency import Spectrogram,Melspectrogram
-# from tensorflow_addons.seq2seq import dynamic_decode
+from AMmodel.layers.LayerNormLstmCell import LayerNormLSTMCell
 
 class LASConfig():
     def __init__(self,
@@ -327,7 +327,7 @@ class DecoderCell(tf.keras.layers.AbstractRNNCell):
         super().__init__(**kwargs)
         self.training = training
         self.enable_tflite_convertible = enable_tflite_convertible
-        self.attention_lstm = tf.keras.layers.LSTMCell(
+        self.attention_lstm = LayerNormLSTMCell(
             units=config.decoder_lstm_units, name="attention_lstm_cell"
         )
         self.decoder_embedding = tf.keras.layers.Embedding(config.n_classes, config.embedding_hidden_size)
@@ -566,8 +566,10 @@ class LAS(tf.keras.Model):
                                              n_dft=1024,
                                              trainable_kernel=speech_config['trainable_kernel']
                                              )
-
-
+            self.mel_layer.trainable = speech_config['trainable_kernel']
+        self.wav_info = speech_config['add_wav_info']
+        if self.wav_info:
+            assert speech_config['use_mel_layer'] == True, 'shold set use_mel_layer is True'
         self.use_window_mask = False
         self.maximum_iterations = 1000 if training else 50
         self.enable_tflite_convertible = enable_tflite_convertible
@@ -629,12 +631,18 @@ class LAS(tf.keras.Model):
         # Encoder Step.
         # input_lengths=tf.squeeze(input_lengths,-1)
         inputs, input_lengths=inputs
+        if self.wav_info:
+            wav=inputs
         if self.mel_layer is not None:
             inputs=self.mel_layer(inputs)
-        
-        encoder_hidden_states = self.encoder(
-            inputs, training=training
-        )
+        if self.wav_info:
+            encoder_hidden_states = self.encoder(
+                [inputs,wav], training=training
+            )
+        else:
+            encoder_hidden_states = self.encoder(
+                inputs, training=training
+            )
         batch_size = tf.shape(encoder_hidden_states)[0]
         alignment_size = tf.shape(encoder_hidden_states)[1]
 
@@ -702,11 +710,18 @@ class LAS(tf.keras.Model):
             # Encoder Step.
             input_lengths=tf.squeeze(input_lengths,-1)
 
+            if self.wav_info:
+                wav = inputs
             if self.mel_layer is not None:
-                inputs=self.mel_layer(inputs)
-            encoder_hidden_states = self.encoder.call(
-                inputs, training=False
-            )
+                inputs = self.mel_layer(inputs)
+            if self.wav_info:
+                encoder_hidden_states = self.encoder(
+                    [inputs, wav], training=False
+                )
+            else:
+                encoder_hidden_states = self.encoder(
+                    inputs, training=False
+                )
             batch_size = tf.shape(encoder_hidden_states)[0]
             alignment_size = tf.shape(encoder_hidden_states)[1]
 

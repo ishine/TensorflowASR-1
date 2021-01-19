@@ -5,7 +5,20 @@ from dataloaders.lm_dataloader import LM_DataLoader
 import tensorflow as tf
 import logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
+  def __init__(self, d_model, warmup_steps=4000):
+    super(CustomSchedule, self).__init__()
 
+    self.d_model = d_model
+    self.d_model = tf.cast(self.d_model, tf.float32)
+
+    self.warmup_steps = warmup_steps
+
+  def __call__(self, step):
+    arg1 = tf.math.rsqrt(step)
+    arg2 = step * (self.warmup_steps ** -1.5)
+
+    return tf.math.rsqrt(self.d_model) * tf.math.minimum(arg1, arg2)
 class LM_Trainer():
     def __init__(self,config):
         self.config = config
@@ -13,9 +26,16 @@ class LM_Trainer():
         lm=LM(config)
         lm.load_model()
         self.model = lm.model
+
+        all_train_step = self.dg.get_per_epoch_steps() * self.config['running_config']['num_epochs']
+        lr = CustomSchedule(config['model_config']['dmodel'], warmup_steps=int(all_train_step * 0.1))
+        config['optimizer_config']['learning_rate'] = lr
+
         self.optimizer = tf.keras.optimizers.Adamax(**config['optimizer_config'])
         self.runner = lm_runners.LMTrainer(self.config['running_config'],one2one=self.model.one2one)
         self.runner.set_total_train_steps(self.dg.get_per_epoch_steps() * self.config['running_config']['num_epochs'])
+
+
         self.runner.compile(self.model,self.optimizer)
     def make_train_batch_data(self):
         batches=[]
@@ -33,8 +53,15 @@ class LM_Trainer():
         return batches
     def train(self):
         while 1:
-
-            self.runner.set_datasets(self.dg.generator(True), self.dg.generator(False))
+            train_datasets = tf.data.Dataset.from_generator(self.dg.generator,
+                                                            self.dg.return_data_types(),
+                                                            self.dg.return_data_shape(),
+                                                            args=(True,))
+            eval_datasets = tf.data.Dataset.from_generator(self.dg.generator,
+                                                           self.dg.return_data_types(),
+                                                           self.dg.return_data_shape(),
+                                                           args=(False,))
+            self.runner.set_datasets(train_datasets, eval_datasets)
 
             self.runner.fit(epoch=self.dg.epochs)
             if self.runner._finished():
