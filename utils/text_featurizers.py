@@ -11,7 +11,7 @@ class TextFeaturizer:
     converted to a sequence of integer indexes.
     """
 
-    def __init__(self, decoder_config: dict):
+    def __init__(self, decoder_config: dict,show=False):
         """
         decoder_config = {
             "vocabulary": str,
@@ -32,6 +32,8 @@ class TextFeaturizer:
         lines = []
         with codecs.open(self.decoder_config["vocabulary"], "r", "utf-8") as fin:
             lines.extend(fin.readlines())
+        if show:
+            print('load token at {}'.format(self.decoder_config['vocabulary']))
         self.token_to_index = {}
         self.index_to_token = {}
         self.vocab_array = []
@@ -99,11 +101,11 @@ class TextFeaturizer:
         Returns:
             sequence of ints in tf.Tensor
         """
-        new_tokens = []
-        for tok in tokens:
-            if tok in self.vocab_array:
-                new_tokens.append(tok)
-        tokens = new_tokens
+        # new_tokens = []
+        # for tok in tokens:
+        #     if tok in self.vocab_array:
+        #         new_tokens.append(tok)
+        # tokens = new_tokens
         if self.decoder_config['model_type']=='CTC':
             feats = [self.token_to_index[token] for token in tokens]
         elif self.decoder_config['model_type']=='LAS':

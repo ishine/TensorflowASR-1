@@ -3,26 +3,25 @@ import logging
 import numpy as np
 from utils.text_featurizers import TextFeaturizer
 import os
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 class LM():
     def __init__(self,config):
         self.config=config
-        self.vocab_featurizer = TextFeaturizer(config['lm_vocab'])
-        self.word_featurizer = TextFeaturizer(config['lm_word'])
+        self.am_featurizer = TextFeaturizer(config['am_token'])
+        self.lm_featurizer = TextFeaturizer(config['lm_token'])
         self.model_config=self.config['model_config']
-        self.model_config.update({'input_vocab_size':self.vocab_featurizer.num_classes,'target_vocab_size':self.word_featurizer.num_classes})
+        self.model_config.update({'input_vocab_size':self.am_featurizer.num_classes,'target_vocab_size':self.lm_featurizer.num_classes})
 
     def load_model(self,training=True):
         self.model = Transformer(**self.model_config)
 
-        try:
-            if not training:
-                self.model._build()
-                self.load_checkpoint()
-        except:
-            logging.info('lm loading model failed.')
-        self.model.start_id=self.word_featurizer.start
-        self.model.end_id=self.word_featurizer.stop
+
+        if not training:
+            self.model._build()
+            self.load_checkpoint()
+
+        self.model.start_id=self.lm_featurizer.start
+        self.model.end_id=self.lm_featurizer.stop
 
     def convert_to_pb(self, export_path):
         import tensorflow as tf
@@ -51,7 +50,7 @@ class LM():
 
 
     def predict(self,pins):
-        x=self.encode(pins,self.vocab_featurizer)
+        x=self.encode(pins,self.am_featurizer)
         result=self.model.inference(x)
         return result
 

@@ -6,7 +6,7 @@ from tester import am_tester,multi_task_tester
 import numpy as np
 import argparse
 import logging
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 class AM_Tester():
     def __init__(self,config):
         self.config=config['learning_config']
@@ -21,11 +21,12 @@ class AM_Tester():
 
         else:
             self.dg=MultiTask_DataLoader(config,training=False)
-            self.runner=multi_task_tester.MultiTaskTester(self.config['running_config'],self.dg.token3_featurizer,self.dg.token4_featurizer)
+            self.runner=multi_task_tester.MultiTaskTester(self.config['running_config'],self.dg.token3_featurizer)
 
 
         self.STT = self.am.model
         self.runner.set_progbar(self.dg.eval_per_epoch_steps())
+        self.runner.set_all_steps(self.dg.eval_per_epoch_steps())
         self.runner.compile(self.STT)
     def make_eval_batch_data(self):
         batches = []
@@ -35,9 +36,9 @@ class AM_Tester():
                 input_length=np.expand_dims(input_length,-1)
                 batches.append((features, input_length, labels, label_length))
             else:
-                features, _, _, input_length, _,_, _, _, py_label, _, txt_label,_ = self.dg.eval_data_generator()
+                speech_features, input_length, words_label, words_label_length, phone_label, phone_label_length, py_label, py_label_length = self.dg.eval_data_generator()
                 input_length = np.expand_dims(input_length, -1)
-                batches.append((features,  input_length, py_label, txt_label))
+                batches.append((speech_features,  input_length, py_label))
 
         return batches
 

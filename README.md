@@ -6,7 +6,7 @@
 </p>
 </h1>
 <h2 align="center">
-<p>集成了Tensorflow 2版本的端到端语音识别模型</p>
+<p>集成了Tensorflow 2版本的端到端语音识别模型，并且RTF(实时率)在0.1左右</p>
 </h2>
 <p align="center">
 目前集成了中文的CTC\Transducer\LAS 三种结构
@@ -45,40 +45,23 @@ C++的demo已经提供。
 
 所有结果测试于 _`AISHELL TEST`_ 数据集.
 
-**由于最近修复了和优化了一些模型结构，以下预训练模型或许已经不适用，仅作一个对比实验结果参考。**
+**RTF**(实时率) 测试于**CPU**单核解码任务。 
+
 
 **AM:**
 
-Model Name|Mel layer(USE/TRAIN)| link                                          |code|train data        |txt CER|phoneme CER|Model Size|
-----------|--------------------|-----------------------------------------------|----|------------------|-------|-----------|---------|
-MultiTask |False/False|pan.baidu.com/s/1nDDqcJXBbpFJASYz_U8FfA        |ucqf|aishell2(10 epochs)|10.4   |8.3        |109M|
-ConformerRNNT(S)|True/True|pan.baidu.com/s/1bdqeLDBHQ_XmgNuUr6mflw|fqvf|aishell2(10 epochs)|-|9.7|61M|
-ConformerCTC(S)|True/True|pan.baidu.com/s/1sh2bUm1HciE6Fu7PHUfRGA|jntv|aishell2(10 epochs)|-|9.9|46M|
-ConformerCTC2(S)|True/False|pan.baidu.com/s/12hsjq-lWudeaQzQomV-PDw|ifm6|aishell2(10 epochs)|-|8.1|46M|
-ConformerCTC3(S)|False/False|pan.baidu.com/s/1zKDgMHfpOhw10pOSWmtLrQ|gmr5|aishell2(10 epochs)|-|7.0|46M|
+Model Name|Mel layer(USE/TRAIN)| link                                          |code|train data        |phoneme CER(%)|Params Size|RTF|
+----------|--------------------|-----------------------------------------------|----|------------------|-----------|---------|-----|
+ConformerCTC(M)|True/False|pan.baidu.com/s/1NPk17DUr0-lBgwCkC5dFuQ|7qmd|aishell-1(20 epochs)| 6.2/5.1| 32M|0.114|
+ConformerCTS(S)|True/False|pan.baidu.com/s/1mHR2RryT7Rw0D4I9caY0QQ|7g3n|aishell-1(20 epochs)| 9.1/8.7| 10M|0.056|
 
 **LM:**
 
-Model Name|O2O(Decoder)| link |code|train data|txt cer|model size|params size|
----------|----|------|----|-------|------|----------|-----------|
-TransformerO2OE|True(False)|pan.baidu.com/s/1lyqHGacYd7arBrJtlTFdTw|kw0y|aishell2 text(98k steps)|4.4|200M|52M|
-TransformerO2OED|True(True)|pan.baidu.com/s/1acvCRpS2j16dxLoCyToB6A|jrfi|aishell2 text(10k steps)|6.2|217M|61M|
-Transformer|True(True)|pan.baidu.com/s/1W3HLNNGL3ceJfoxb0P7RMw|qeet|aishell2 text(10k steps)|8.6|233M|61M|
-TransformerPunc|False(True)|pan.baidu.com/s/1umwMP2nIzr25NnvG3LTRvw|7ctd|翻译文本|-|76M|30M|
-
-**Speed:**
-
-AM 速度测试(基于Python), 一条约4.1秒的音频 **CPU**响应速度为:
-
-|CTC    |Transducer|LAS  |
-|-------|----------|-----|
-|150ms  |350ms     |280ms|
-
-LM 速度测试(基于Python),12个字的响应速度 **CPU**:
-
-|O2O-Encoder-Decoder|O2O-Encoder|Encoder-Decoder|
-|-------------------|-----------|---------------|
-|              100ms|       20ms|          300ms|
+Model Name|O2O(Decoder)| link |code|train data|txt cer|model size|params size|RTF|
+---------|----|------|----|-------|------|----------|-----------|-----|
+TransformerO2OE|True(False)|pan.baidu.com/s/1X11OE_sk7yNTjtDpU7sfvA|sxrw|aishell-1 text(30 epochs)|4.4|43M|10M|0.06|
+TransformerO2OED|True(True)|pan.baidu.com/s/1acvCRpS2j16dxLoCyToB6A|jrfi|aishell2 text(10k steps)|6.2|217M|61M|0.13|
+Transformer|True(True)|-|-|aishell2 text(10k steps)|8.6|233M|61M|0.31|
 
 **快速使用：**
 

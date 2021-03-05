@@ -11,25 +11,24 @@ class AM():
         self.config = config
         self.update_model_type()
         self.speech_config= self.config['speech_config']
-        try:
+        if self.model_type!='MultiTask':
             self.text_config=self.config['decoder_config']
-        except:
-            self.text_config = self.config['decoder4_config']
+        else:
+            self.text_config = self.config['decoder3_config']
         self.model_config=self.config['model_config']
-        self.text_feature=TextFeaturizer(self.text_config)
+        self.text_feature=TextFeaturizer(self.text_config,True)
         self.speech_feature=SpeechFeaturizer(self.speech_config)
 
         self.init_steps=None
     def update_model_type(self):
-        if 'CTC' in self.config['model_config']['name']:
+        if 'CTC' in self.config['model_config']['name'] and 'Multi' not in self.config['model_config']['name'] :
             self.config['decoder_config'].update({'model_type': 'CTC'})
             self.model_type='CTC'
         elif 'Multi' in self.config['model_config']['name']:
             self.config['decoder1_config'].update({'model_type': 'CTC'})
             self.config['decoder2_config'].update({'model_type': 'CTC'})
             self.config['decoder3_config'].update({'model_type': 'CTC'})
-            self.config['decoder4_config'].update({'model_type': 'LAS'})
-            self.config['decoder_config'].update({'model_type': 'LAS'})
+            self.config['decoder_config'].update({'model_type': 'CTC'})
             self.model_type = 'MultiTask'
         elif 'LAS' in self.config['model_config']['name']:
             self.config['decoder_config'].update({'model_type': 'LAS'})
@@ -61,6 +60,7 @@ class AM():
         f,c=self.speech_feature.compute_feature_dim()
         input_shape=[None,f,c]
         self.model_config.update({'input_shape':input_shape})
+        self.model_config.update({'dmodel':self.model_config['rnn_conf']['rnn_units']})
         if self.model_config['name'] == 'DeepSpeech2Transducer':
             self.model_config.pop('LAS_decoder')
             self.model_config.pop('enable_tflite_convertible')
@@ -76,22 +76,20 @@ class AM():
         else:
             raise ('not in supported model list')
     def multi_task_model(self,training):
-        from AMmodel.MultiConformer import ConformerMultiTaskLAS
+        from AMmodel.MultiConformer import ConformerMultiTaskCTC
         token1_feature = TextFeaturizer(self.config['decoder1_config'])
         token2_feature = TextFeaturizer(self.config['decoder2_config'])
         token3_feature = TextFeaturizer(self.config['decoder3_config'])
-        token4_feature = TextFeaturizer(self.config['decoder4_config'])
+
 
         self.model_config.update({
             'classes1':token1_feature.num_classes,
             'classes2':token2_feature.num_classes,
             'classes3':token3_feature.num_classes,
         })
-        self.model_config['LAS_decoder'].update({'n_classes': token4_feature.num_classes})
-        self.model_config['LAS_decoder'].update({'startid': token4_feature.start})
-        self.model = ConformerMultiTaskLAS(self.model_config,  training=training,
-                                    enable_tflite_convertible=self.model_config[
-                                        'enable_tflite_convertible'],speech_config=self.speech_config)
+
+        self.model = ConformerMultiTaskCTC(self.model_config,  training=training,
+                                    speech_config=self.speech_config)
     def espnet_model(self,training):
         from AMmodel.espnet import ESPNetCTC,ESPNetLAS,ESPNetTransducer
         self.config['Transducer_decoder'].update({'vocabulary_size': self.text_feature.num_classes})
@@ -123,28 +121,27 @@ class AM():
         f,c=self.speech_feature.compute_feature_dim()
 
 
-        try:
-            if not training:
-                if self.text_config['model_type'] != 'LAS':
-                    if self.model.mel_layer is not None:
-                        self.model._build([3,16000,1])
-                        self.model.return_pb_function([None,None,1])
-                    else:
-                        self.model._build([3, 80, f, c])
-                        self.model.return_pb_function([None,None, f, c])
 
+        if not training:
+            if self.text_config['model_type'] != 'LAS':
+                if self.model.mel_layer is not None:
+                    self.model._build([3,16000,1])
+                    self.model.return_pb_function([None,None,1])
                 else:
-                    if self.model.mel_layer is not None:
-                        self.model._build([3,16000,1], training)
-                        self.model.return_pb_function([None,None,1])
-                    else:
+                    self.model._build([3, 80, f, c])
+                    self.model.return_pb_function([None,None, f, c])
 
-                        self.model._build([2, 80, f, c], training)
-                        self.model.return_pb_function([None,None, f, c])
-                self.load_checkpoint(self.config)
+            else:
+                if self.model.mel_layer is not None:
+                    self.model._build([3,16000,1], training)
+                    self.model.return_pb_function([None,None,1])
+                else:
 
-        except:
-            print('am loading model failed.')
+                    self.model._build([2, 80, f, c], training)
+                    self.model.return_pb_function([None,None, f, c])
+            self.load_checkpoint(self.config)
+
+
     def convert_to_pb(self,export_path):
         import tensorflow as tf
         concrete_func = self.model.recognize_pb.get_concrete_function()

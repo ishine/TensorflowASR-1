@@ -52,7 +52,6 @@ class CtcModel(tf.keras.Model):
         self(features, training=False)
 
     def summary(self, line_length=None, **kwargs):
-        self.encoder.summary(line_length=line_length, **kwargs)
         super(CtcModel, self).summary(line_length, **kwargs)
 
     def add_featurizers(self,
@@ -72,10 +71,11 @@ class CtcModel(tf.keras.Model):
                 inputs=self.mel_layer(inputs)
             # print(inputs.shape)
         if self.wav_info :
-            outputs = self.encoder([inputs,wav], training=training)
+            enc_outputs = self.encoder([inputs,wav], training=training)
         else:
-            outputs = self.encoder(inputs, training=training)
-        outputs = self.fc(outputs, training=training)
+            enc_outputs = self.encoder(inputs, training=training)
+        outputs = self.fc(enc_outputs, training=training)
+
         return outputs
 
     def return_pb_function(self,shape,beam=False):
